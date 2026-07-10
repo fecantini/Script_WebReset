@@ -1,0 +1,14 @@
+/home/felipe/Projects/WebReset/WebReset/bin/Debug/net10.0/WebReset
+/home/felipe/Projects/WebReset/WebReset/bin/Debug/net10.0/WebReset.deps.json
+/home/felipe/Projects/WebReset/WebReset/bin/Debug/net10.0/WebReset.runtimeconfig.json
+/home/felipe/Projects/WebReset/WebReset/bin/Debug/net10.0/WebReset.dll
+/home/felipe/Projects/WebReset/WebReset/bin/Debug/net10.0/WebReset.pdb
+/home/felipe/Projects/WebReset/WebReset/obj/Debug/net10.0/WebReset.GeneratedMSBuildEditorConfig.editorconfig
+/home/felipe/Projects/WebReset/WebReset/obj/Debug/net10.0/WebReset.AssemblyInfoInputs.cache
+/home/felipe/Projects/WebReset/WebReset/obj/Debug/net10.0/WebReset.AssemblyInfo.cs
+/home/felipe/Projects/WebReset/WebReset/obj/Debug/net10.0/WebReset.csproj.CoreCompileInputs.cache
+/home/felipe/Projects/WebReset/WebReset/obj/Debug/net10.0/WebReset.dll
+/home/felipe/Projects/WebReset/WebReset/obj/Debug/net10.0/refint/WebReset.dll
+/home/felipe/Projects/WebReset/WebReset/obj/Debug/net10.0/WebReset.pdb
+/home/felipe/Projects/WebReset/WebReset/obj/Debug/net10.0/WebReset.genruntimeconfig.cache
+/home/felipe/Projects/WebReset/WebReset/obj/Debug/net10.0/ref/WebReset.dll
