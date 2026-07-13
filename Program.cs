@@ -6,28 +6,24 @@ using WebReset.Pages;
 namespace WebReset {
     internal class Program {
         static async Task Main(string[] args) {
-
             int counterReset = 0;
 
             Console.Write("Device IP: ");
             string? ip = Console.ReadLine();
 
             if (string.IsNullOrWhiteSpace(ip)) {
-                Console.WriteLine("Invalid IP.");
+                Console.WriteLine("Invalid IP");
                 return;
             }
 
-            Console.Write("Show window? [y/n]: ");
-            bool showWindow = Console.ReadLine()?.Trim().ToLower() == "y";
-
-            Console.Write("Delete application? [y/n]: ");
-            bool deleteApp = Console.ReadLine()?.Trim().ToLower() == "y";
+            bool showWindow = ReadYesNo("Show window? [y/n]: ");
+            bool deleteApp = ReadYesNo("Delete application? [y/n]: ");
 
             Console.Write("Username: ");
             string? username = Console.ReadLine();
 
             if (string.IsNullOrWhiteSpace(username)) {
-                Console.WriteLine("Invalid username.");
+                Console.WriteLine("Invalid username");
                 return;
             }
 
@@ -35,7 +31,7 @@ namespace WebReset {
             string? password = Console.ReadLine();
 
             if (string.IsNullOrWhiteSpace(password)) {
-                Console.WriteLine("Invalid password.");
+                Console.WriteLine("Invalid password");
                 return;
             }
 
@@ -43,7 +39,7 @@ namespace WebReset {
             string? mqttIp = Console.ReadLine();
 
             if (string.IsNullOrWhiteSpace(mqttIp)) {
-                Console.WriteLine("Invalid MQTT IP.");
+                Console.WriteLine("Invalid MQTT IP");
                 return;
             }
 
@@ -51,7 +47,7 @@ namespace WebReset {
             string? topic = Console.ReadLine();
 
             if (string.IsNullOrWhiteSpace(topic)) {
-                Console.WriteLine("Invalid topic.");
+                Console.WriteLine("Invalid topic");
                 return;
             }
 
@@ -59,7 +55,15 @@ namespace WebReset {
             string? mqttPortString = Console.ReadLine();
 
             if (!int.TryParse(mqttPortString, out int mqttPort)) {
-                Console.WriteLine("Invalid port.");
+                Console.WriteLine("Invalid port");
+                return;
+            }
+
+            Console.Write("MQTT Trigger: ");
+            string? mqttTrigger = Console.ReadLine();
+
+            if (string.IsNullOrWhiteSpace(mqttTrigger)) {
+                Console.WriteLine("Invalid trigger");
                 return;
             }
 
@@ -70,49 +74,123 @@ namespace WebReset {
                 return;
             }
 
+            string? lastMessage = null;
+            bool resetRunning = false;
+
+            object lockObject = new();
+
             mqtt.MessageReceived += message => {
+                string currentMessage = message.Trim();
 
-                if (message.Trim() != "5") {
-                    Console.WriteLine("CPU is not ready");
-                    return;
+                lock (lockObject) {
+                    if (currentMessage == lastMessage) {
+                        Console.WriteLine("Duplicate MQTT message ignored.");
+                        return;
+                    }
+
+                    lastMessage = currentMessage;
+
+                    if (resetRunning) {
+                        Console.WriteLine("Reset already running. Message ignored.");
+                        return;
+                    }
+
+                    if (currentMessage != mqttTrigger) {
+                        Console.WriteLine("CPU is not ready");
+                        return;
+                    }
+
+                    resetRunning = true;
                 }
 
-                Console.WriteLine("CPU is INACTIVE");
-
-                IWebDriver driver = Drive.CreateDriver(ip, showWindow);
-
-                try {
-                    Page page = new Page(driver);
-
-                    if (!page.ManagementTab()) {
-                        Console.WriteLine("Failed to open Management tab.");
-                        return;
+                _ = Task.Run(() => {
+                    try {
+                        ExecuteReset(
+                            ip,
+                            username,
+                            password,
+                            deleteApp,
+                            showWindow,
+                            ref counterReset
+                        );
                     }
-
-                    if (!page.Login(username, password)) {
-                        Console.WriteLine("Login failed.");
-                        return;
+                    catch (Exception ex) {
+                        Console.WriteLine($"Reset error: {ex.Message}");
                     }
-
-                    if (!page.Reset(deleteApp, username, password)) {
-                        Console.WriteLine("Reset failed.");
-                        return;
+                    finally {
+                        lock (lockObject) {
+                            resetRunning = false;
+                        }
                     }
-
-                    counterReset++;
-
-                    Console.WriteLine(
-                        $"Counter Reset: {counterReset} | Time: {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
-
-                } finally {
-                    driver.Quit();
-                }
+                });
             };
 
             Console.WriteLine("Waiting MQTT messages...");
             Console.ReadLine();
 
             await mqtt.Disconnect();
+        }
+
+        static bool ReadYesNo(string message) {
+            while (true) {
+                Console.Write(message);
+
+                string? input = Console.ReadLine()?.Trim().ToLower();
+
+                if (input == "y")
+                    return true;
+
+                if (input == "n")
+                    return false;
+
+                Console.WriteLine("Invalid option. Use y or n.");
+            }
+        }
+
+        static void ExecuteReset(
+            string ip,
+            string username,
+            string password,
+            bool deleteApp,
+            bool showWindow,
+            ref int counterReset) {
+            Console.WriteLine("CPU is INACTIVE");
+
+            IWebDriver driver = Drive.CreateDriver(ip, showWindow);
+
+            try {
+                Page page = new Page(driver);
+
+                if (!page.ManagementTab()) {
+                    Console.WriteLine("Failed to open Management tab.");
+                    return;
+                }
+
+                if (!page.Login(username, password)) {
+                    Console.WriteLine("Login failed.");
+                    return;
+                }
+
+                if (!page.Reset(deleteApp, username, password)) {
+                    Console.WriteLine("Reset failed.");
+                    return;
+                }
+
+                counterReset++;
+
+                Console.ForegroundColor = ConsoleColor.Yellow;
+
+                Console.WriteLine();
+                Console.WriteLine(new string('=', 60));
+                Console.WriteLine($"RESET #{counterReset}");
+                Console.WriteLine($"Timestamp : {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+                Console.WriteLine(new string('=', 60));
+
+                Console.ResetColor();
+            }
+            finally {
+                driver.Quit();
+            }
         }
     }
 }
