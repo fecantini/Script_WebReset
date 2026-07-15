@@ -1,5 +1,7 @@
+
 using OpenQA.Selenium;
 using OpenQA.Selenium.Support.UI;
+using System.Net.NetworkInformation;
 
 namespace WebReset.Pages {
     public class Page {
@@ -78,10 +80,48 @@ namespace WebReset.Pages {
                     deleteBox.Click();
                 }
 
-                var resetButton = wait.Until(d =>
-                    d.FindElement(By.Id("idBtnSystemControl")));
+                Console.WriteLine("Waiting reset button...");
 
-                resetButton.Click();
+                wait.Until(d => {
+                    var button = d.FindElement(By.Id("idBtnSystemControl"));
+
+                    return button.Displayed && button.Enabled;
+                });
+
+                bool clicked = false;
+
+                for (int attempt = 1; attempt <= 3; attempt++) {
+                    try {
+                        var resetButton = driver.FindElement(By.Id("idBtnSystemControl"));
+
+                        resetButton.Click();
+
+                        clicked = true;
+
+                        break;
+
+                    } catch (ElementClickInterceptedException) {
+                        Console.WriteLine($"Reset button click intercepted. Attempt {attempt}/3");
+
+                        if (attempt == 3) {
+                            throw;
+                        }
+
+                        Thread.Sleep(1000);
+                    } catch (StaleElementReferenceException) {
+                        Console.WriteLine($"Reset button became stale. Attempt {attempt}/3");
+
+                        if (attempt == 3) {
+                            throw;
+                        }
+
+                        Thread.Sleep(500);
+                    }
+                }
+
+                if (!clicked) {
+                    throw new Exception("Could not click reset button.");
+                }
 
                 Console.WriteLine("Waiting first alert...");
 
@@ -134,7 +174,7 @@ namespace WebReset.Pages {
 
                 return true;
 
-            } catch(Exception ex) {
+            } catch (Exception ex) {
                 Console.WriteLine($"Reset failed: {ex.Message}");
                 return false;
             }
