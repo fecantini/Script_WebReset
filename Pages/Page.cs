@@ -1,7 +1,6 @@
 
 using OpenQA.Selenium;
 using OpenQA.Selenium.Support.UI;
-using System.Net.NetworkInformation;
 
 namespace WebReset.Pages {
     public class Page {
@@ -9,7 +8,7 @@ namespace WebReset.Pages {
         private readonly WebDriverWait wait;
         public Page(IWebDriver driver) {
             this.driver = driver;
-            this.wait = new WebDriverWait(driver, TimeSpan.FromSeconds(3));
+            this.wait = new WebDriverWait(driver, TimeSpan.FromSeconds(10));
         }
 
         // Change to Management tab   

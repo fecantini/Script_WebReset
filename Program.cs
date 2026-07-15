@@ -111,7 +111,6 @@ namespace WebReset {
                 return;
             }
 
-
             MqttSubscriber mqtt = new MqttSubscriber();
 
             if (!await mqtt.Initialize(mqttIp, mqttPort, topic)) {
@@ -119,44 +118,47 @@ namespace WebReset {
                 return;
             }
 
-
-            string? lastMessage = null;
             bool resetRunning = false;
+            bool resetDoneForCurrentTrigger = false;
+
+            DateTime nextRetry = DateTime.MinValue;
 
             object lockObject = new();
-
 
             mqtt.MessageReceived += message => {
                 string currentMessage = message.Trim();
 
                 lock (lockObject) {
 
-                    if (currentMessage == lastMessage) {
-                        Console.WriteLine("Duplicate MQTT message ignored.");
+                    if (currentMessage != mqttTrigger) {
+                        resetDoneForCurrentTrigger = false;
+
+                        Console.WriteLine("CPU is not ready!");
                         return;
                     }
-
-                    lastMessage = currentMessage;
-
 
                     if (resetRunning) {
-                        Console.WriteLine("Reset already running. Message ignored.");
+                        Console.WriteLine("Reset already running, message ignored");
                         return;
                     }
 
+                    if (resetDoneForCurrentTrigger) {
+                        Console.WriteLine("Reset already executed for current trigger");
+                        return;
+                    }
 
-                    if (currentMessage != mqttTrigger) {
-                        Console.WriteLine("CPU is not ready.");
+                    if (DateTime.Now < nextRetry) {
+                        TimeSpan remaining = nextRetry - DateTime.Now;
+                        Console.WriteLine($"Waiting {remaining.Seconds}s before next reset attempt.");
                         return;
                     }
 
                     resetRunning = true;
                 }
 
-
                 _ = Task.Run(() => {
                     try {
-                        ExecuteReset(
+                        bool success = ExecuteReset(
                             ip,
                             username,
                             password,
@@ -165,9 +167,23 @@ namespace WebReset {
                             logTxt,
                             counterReset
                         );
+
+                        lock (lockObject) {
+                            if (success) {
+                                resetDoneForCurrentTrigger = true;
+                                nextRetry = DateTime.MinValue;
+                            } else {
+                                 nextRetry = DateTime.Now.AddSeconds(5);
+                                 Console.WriteLine($"Retry available at {nextRetry:HH:mm:ss}");
+                            }
+                        }
                     }
                     catch (Exception ex) {
                         Console.WriteLine($"Reset error: {ex.Message}");
+
+                        lock (lockObject) {
+                            nextRetry = DateTime.Now.AddSeconds(5);
+                        }
                     }
                     finally {
                         lock (lockObject) {
@@ -176,7 +192,6 @@ namespace WebReset {
                     }
                 });
             };
-
 
             Console.WriteLine("Waiting MQTT messages...");
             Console.ReadLine();
